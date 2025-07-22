@@ -15,10 +15,17 @@ public class PlayerController : MonoBehaviour
         private set
         {
             if (_chosenUnitController != null)
+            {
                 _chosenUnitController.OnDeath -= _chosenUnitController_OnDeath;
-            if (value != null)
+                _chosenUnitController.Deselect();
+            }
+            if (value != null && value.Select())
+            {
                 value.OnDeath += _chosenUnitController_OnDeath;
-            _chosenUnitController = value;
+                _chosenUnitController = value;
+            }
+            else
+                _chosenUnitController = null;
         }
     }
 
@@ -47,7 +54,7 @@ public class PlayerController : MonoBehaviour
             if (Physics.Raycast(ray, out RaycastHit hit) && 
                 hit.transform.GetComponent<NavMeshSurface>() != null)
             {
-                chosenUnitController.DrawPathTo(hit.point, UnitController.PathColorType.Preview);
+                chosenUnitController.DrawPathPreview(hit.point);
             }
         }
         
@@ -71,7 +78,11 @@ public class PlayerController : MonoBehaviour
             Ray ray = _mainCamera.ScreenPointToRay(Input.mousePosition);
 
             if (Physics.Raycast(ray, out RaycastHit hit))
-                chosenUnitController = hit.transform.GetComponent<UnitController>();
+            {
+                var unitController = hit.transform.GetComponent<UnitController>();
+                if (unitController != null)
+                    chosenUnitController = unitController;
+            }
         }
     }
 
