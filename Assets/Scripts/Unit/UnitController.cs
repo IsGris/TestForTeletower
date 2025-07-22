@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.AI;
@@ -21,16 +20,16 @@ public class UnitController : MonoBehaviour
     protected UnitMovement unitMovement;
     protected UnitAttack unitAttack;
 
-    PathColorType _currentPathLineState => GetPathTypeFromColor(_pathLineRenderer.startColor);
-    // true when player selects this unit
-    bool _isSelected = false;
-    // point to which unit is moving
-    Vector3? _targetPoint = null;
     [SerializeField] LineRenderer _pathLineRenderer;
     [SerializeField] LineRenderer _indicatorRenderer;
     [SerializeField] SpriteRenderer _attackRangeRenderer;
     [SerializeField] NavMeshObstacle _unitFloorObstacle;
     [SerializeField] NavMeshAgent _unitAgent;
+    PathType _currentPathLineState => GetPathTypeFromColor(_pathLineRenderer.startColor);
+    // true when player selects this unit
+    bool _isSelected = false;
+    // point to which unit is moving
+    Vector3? _targetPoint = null;
 
     // UNITY
 
@@ -61,7 +60,7 @@ public class UnitController : MonoBehaviour
 
         unitMovement.OnMovementStart += (path) => 
         { 
-            DrawPath(path, PathColorType.Move); 
+            DrawPath(path, PathType.Move); 
             _targetPoint = path.corners.Last(); 
         };
         unitMovement.OnMovementEnd += () =>
@@ -69,6 +68,8 @@ public class UnitController : MonoBehaviour
             if (!_isSelected) HidePath();
             _targetPoint = null;
         };
+        unitAttack.Init(UnitSettings, _attackRangeRenderer);
+        unitMovement.Init(_unitAgent);
     }
 
     private void Update()
@@ -78,6 +79,12 @@ public class UnitController : MonoBehaviour
     }
 
     // PUBLIC
+
+    public void Kill(UnitAttack killer)
+    {
+        OnDeath?.Invoke();
+        Destroy(gameObject);
+    }
 
     public bool Select()
     {
@@ -89,9 +96,8 @@ public class UnitController : MonoBehaviour
         if (_isSelected || IsMoving) return false;
         _isSelected = true;
         _attackRangeRenderer.enabled = true;
-        _indicatorRenderer.enabled = true;
-        _indicatorRenderer.startColor = UnitSettings.SelectedUnitIndicatorColor;
-        _indicatorRenderer.endColor = UnitSettings.SelectedUnitIndicatorColor;
+        unitAttack.PreviewAttack(new Vector2(transform.position.x, transform.position.z));
+        ShowIndicator(IndicatorType.Selected);
         _unitFloorObstacle.enabled = false;
         // If we disable floor obstacle and enable agent at the same time
         // agent will be teleported for a small amount of units for some reason
@@ -110,9 +116,9 @@ public class UnitController : MonoBehaviour
         }
         if (!_isSelected) return false;
         _isSelected = false;
-        _attackRangeRenderer.enabled = false;
-        _indicatorRenderer.enabled = false;
-        if (_currentPathLineState == PathColorType.Preview)
+        unitAttack.HideAttackPreview();
+        HideIndicator();
+        if (_currentPathLineState == PathType.Preview)
             HidePath();
         if (!IsMoving)
             MakeAgentBecomeObstacle();
@@ -126,57 +132,69 @@ public class UnitController : MonoBehaviour
         if (IsMoving) return false; // Already drawing path for movement
 
         NavMeshPath path = GetPathTo(targetPosition);
-        if (DrawPath(path, PathColorType.Preview))
+        if (DrawPath(path, PathType.Preview))
         {
-            _attackRangeRenderer.transform.position = path.corners.Last();
+            unitAttack.PreviewAttack(new Vector2(path.corners.Last().x, path.corners.Last().z));
             return true;
         }
         return false;
     }
-    public bool DrawPathTo(Vector3 targetPosition, PathColorType pathColorType) => 
+    public bool DrawPathTo(Vector3 targetPosition, PathType pathColorType) => 
         DrawPath(GetPathTo(targetPosition), GetPathColor(pathColorType));
-    public bool DrawPath(NavMeshPath path, PathColorType pathColorType) =>
+    public bool DrawPath(NavMeshPath path, PathType pathColorType) =>
         DrawPath(path, GetPathColor(pathColorType));
     public void HidePath() => _pathLineRenderer.positionCount = 0;
     public NavMeshPath GetPathTo(Vector3 targetPosition) => unitMovement.GetPathTo(targetPosition);
     public bool MoveTo(Vector3 targetPoint) => unitMovement.MoveTo(targetPoint);
     public bool MoveByPath(NavMeshPath path) => unitMovement.MoveByPath(path);
+    
+    public bool AttackEnemy(UnitController enemy) => unitAttack.AttackEnemy(enemy);
+
+    public void ShowIndicator(IndicatorType indicator)
+    {
+        _indicatorRenderer.enabled = true;
+        _indicatorRenderer.startColor = GetIndicatorColor(indicator);
+        _indicatorRenderer.endColor = GetIndicatorColor(indicator);
+    }
+    public void HideIndicator()
+    {
+        _indicatorRenderer.enabled = false;
+    }
 
     // PRIVATE
 
-    // Makes indicator for all attackable enemies inside attack circle red
-    // targetPosition - center of attack circle
-    private void IndicateAllAttackableEnemies(Vector3 targetPosition)
+    private Color GetIndicatorColor(IndicatorType indicator)
     {
-
-    }
-
-    // Returns all attackable enemies inside attack circle
-    // targetPosition - center of attack circle
-    private List<UnitController> GetAllAttackableEnemies(Vector3 targetPosition)
-    {
-        throw new NotImplementedException();
-    }
-    private Color GetPathColor(PathColorType pathColorType)
-    {
-        switch (pathColorType)
+        switch (indicator)
         {
-            case PathColorType.Preview:
-                return UnitSettings.PreviewPathColor;
-            case PathColorType.Move:
-                return UnitSettings.MovePathColor;
+            case IndicatorType.Selected:
+                return UnitSettings.SelectedUnitIndicatorColor;
+            case IndicatorType.Attackable:
+                return UnitSettings.AttackableUnitIndicatorColor;
             default:
-                throw new NotImplementedException($"Not implemented behaviour for path color type: {pathColorType.ToString()}");
+                throw new NotImplementedException($"Not implemented behaviour for indicator type: {indicator.ToString()}");
         }
     }
-    private PathColorType GetPathTypeFromColor(Color color)
+    private Color GetPathColor(PathType pathType)
+    {
+        switch (pathType)
+        {
+            case PathType.Preview:
+                return UnitSettings.PreviewPathColor;
+            case PathType.Move:
+                return UnitSettings.MovePathColor;
+            default:
+                throw new NotImplementedException($"Not implemented behaviour for path type: {pathType.ToString()}");
+        }
+    }
+    private PathType GetPathTypeFromColor(Color color)
     {
         if (color == UnitSettings.PreviewPathColor)
-            return PathColorType.Preview;
+            return PathType.Preview;
         else if (color == UnitSettings.MovePathColor)
-            return PathColorType.Move;
+            return PathType.Move;
         else
-            return PathColorType.Undefined;
+            return PathType.Undefined;
     }
     private bool DrawPath(NavMeshPath path, Color? pathColor = null)
     {
@@ -195,10 +213,17 @@ public class UnitController : MonoBehaviour
 
     // OTHER
 
-    public enum PathColorType 
+    public enum PathType 
     {
         Undefined,
         Preview,
         Move
+    }
+
+    public enum IndicatorType
+    {
+        NoIndicator,
+        Selected,
+        Attackable
     }
 }

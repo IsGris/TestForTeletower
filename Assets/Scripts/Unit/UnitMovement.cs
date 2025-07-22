@@ -13,18 +13,14 @@ public class UnitMovement : MonoBehaviour
 
     // VARIABLES
 
-    [SerializeField] private Camera _mainCamera;
     NavMeshAgent _agent;
     bool _isMoving = false;
 
     // UNITY
 
-    void Start()
+    public void Init(NavMeshAgent agent)
     {
-        _agent = GetComponent<NavMeshAgent>();
-
-        if (_mainCamera == null)
-            _mainCamera = Camera.main;
+        _agent = agent;
     }
 
     void Update()
