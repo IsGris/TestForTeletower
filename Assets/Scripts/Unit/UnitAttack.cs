@@ -4,10 +4,14 @@ using UnityEngine;
 
 public class UnitAttack : MonoBehaviour
 {
+    // VARIABLES
+
     private List<UnitController> _attackableEnemies = new();
 
     protected UnitSettings unitSettings;
     private SpriteRenderer _attackRangeRenderer;
+
+    // PUBLIC
 
     public void Init(UnitSettings unitSettings, SpriteRenderer attackRangeRenderer)
     {
@@ -25,26 +29,6 @@ public class UnitAttack : MonoBehaviour
     {
         _attackRangeRenderer.enabled = false;
         HideAttackableIndicator();
-    }
-
-    // Makes indicator for all attackable enemies inside attack circle red
-    // targetPosition - center of attack circle(x and z coordinates in world coordinates)
-    private void IndicateAttackable(Vector2 targetPosition)
-    {
-        HideAttackableIndicator();
-        _attackableEnemies = GetAllAttackableEnemies(targetPosition);
-        foreach (var unit in _attackableEnemies)
-        {
-            unit.ShowIndicator(UnitController.IndicatorType.Attackable);
-        }
-    }
-
-    private void HideAttackableIndicator()
-    {
-        foreach (var unit in _attackableEnemies)
-        {
-            unit.HideIndicator();
-        }
     }
 
     // Returns all attackable enemies inside attack circle
@@ -77,5 +61,43 @@ public class UnitAttack : MonoBehaviour
         if (!_attackableEnemies.Contains(enemy)) return false;
         enemy.Kill(this);
         return true;
+    }
+
+    // PRIVATE
+
+    // Delete all null elements from _attackableEnemies
+    void UpdateAttackableEnemies()
+    {
+        _attackableEnemies.RemoveAll(item => item == null || item.IsDead);
+    }
+
+    // Makes indicator for all attackable enemies inside attack circle red
+    // targetPosition - center of attack circle(x and z coordinates in world coordinates)
+    private void IndicateAttackable(Vector2 targetPosition)
+    {
+        HideAttackableIndicator();
+        foreach (var enemy in _attackableEnemies)
+            enemy.OnDeath -= UpdateAttackableEnemies;
+        _attackableEnemies = GetAllAttackableEnemies(targetPosition);
+        foreach (var enemy in _attackableEnemies)
+            enemy.OnDeath += UpdateAttackableEnemies;
+        foreach (var unit in _attackableEnemies)
+        {
+            unit.ShowIndicator(UnitController.IndicatorType.Attackable);
+        }
+    }
+
+    private void OnDestroy()
+    {
+        foreach (var enemy in _attackableEnemies)
+            enemy.OnDeath -= UpdateAttackableEnemies;
+    }
+
+    private void HideAttackableIndicator()
+    {
+        foreach (var unit in _attackableEnemies)
+        {
+            unit.HideIndicator();
+        }
     }
 }

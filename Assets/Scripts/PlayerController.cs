@@ -7,6 +7,8 @@ using UnityEngine.AI;
 public class PlayerController : MonoBehaviour
 {
     // VARIABLES
+    private float doubleClickTimeLimit = 0.25f;
+    private float lastClickTime = -1f;
 
     protected bool haveChosenUnit => chosenUnitController != null;
     protected UnitController chosenUnitController
@@ -26,11 +28,12 @@ public class PlayerController : MonoBehaviour
             }
             else
                 _chosenUnitController = null;
+            previewPathMousePos = Vector3.zero;
         }
     }
 
     Camera _mainCamera;
-    Vector3 _lastMousePosition = Vector3.zero;
+    Vector3 previewPathMousePos = Vector3.zero;
     UnitController _chosenUnitController = null;
 
     // UNITY
@@ -42,47 +45,40 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        // Show path for chosen unit on every mouse movement
+        // Show path or attack enemy on RMB
 
-        if (Input.mousePosition != _lastMousePosition && 
+        if (Input.GetMouseButtonDown(1) && 
             haveChosenUnit)
-        {
-            _lastMousePosition = Input.mousePosition;
-
-            Ray ray = _mainCamera.ScreenPointToRay(Input.mousePosition);
-
-            if (Physics.Raycast(ray, out RaycastHit hit) && 
-                hit.transform.GetComponent<NavMeshSurface>() != null)
-            {
-                chosenUnitController.DrawPathPreview(hit.point);
-            }
-        }
-        
-        // Check does player want to move unit
-
-        if (Input.GetMouseButtonDown(0) && 
-            haveChosenUnit)
-        {
-            Ray ray = _mainCamera.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit) &&
-                hit.transform.GetComponent<NavMeshSurface>() != null)
-            {
-                chosenUnitController.MoveTo(hit.point);
-            }
-        }
-
-        // Try to choose unit on LMB
-
-        if (Input.GetMouseButtonDown(0))
         {
             Ray ray = _mainCamera.ScreenPointToRay(Input.mousePosition);
 
             if (Physics.Raycast(ray, out RaycastHit hit))
             {
-                var unitController = hit.transform.GetComponent<UnitController>();
-                if (unitController != null)
-                    chosenUnitController = unitController;
+                if (hit.transform.GetComponent<NavMeshSurface>() != null)
+                {
+                    chosenUnitController.DrawPathPreview(hit.point);
+                    previewPathMousePos = hit.point;
+                } else
+                {
+                    var hitUnitController = hit.transform.GetComponent<UnitController>();
+                    if (hitUnitController != null)
+                        chosenUnitController.AttackEnemy(hitUnitController);
+                }
             }
+        }
+
+        // Handle single/double click
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            float timeSinceLastClick = Time.time - lastClickTime;
+
+            if (timeSinceLastClick <= doubleClickTimeLimit)
+                HandleDoubleClick();
+            else
+                HandleSingleClick();
+
+            lastClickTime = Time.time;
         }
     }
 
@@ -90,4 +86,29 @@ public class PlayerController : MonoBehaviour
 
     private void _chosenUnitController_OnDeath() =>
         chosenUnitController = null;
+
+    private void HandleSingleClick()
+    {
+        // Choose unit on single click
+
+        Ray ray = _mainCamera.ScreenPointToRay(Input.mousePosition);
+
+        if (Physics.Raycast(ray, out RaycastHit hit))
+        {
+            var unitController = hit.transform.GetComponent<UnitController>();
+            if (unitController != null)
+                chosenUnitController = unitController;
+        }
+    }
+
+    private void HandleDoubleClick()
+    {
+        // Move to point on double click
+
+        if (haveChosenUnit &&
+            previewPathMousePos != Vector3.zero)
+        {
+            chosenUnitController.MoveTo(previewPathMousePos);
+        }
+    }
 }

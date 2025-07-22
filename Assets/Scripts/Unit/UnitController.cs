@@ -16,6 +16,7 @@ public class UnitController : MonoBehaviour
 
     public UnitSettings UnitSettings;
     public bool IsMoving => _targetPoint != null;
+    public bool IsDead { get; private set; }
 
     protected UnitMovement unitMovement;
     protected UnitAttack unitAttack;
@@ -65,7 +66,7 @@ public class UnitController : MonoBehaviour
         };
         unitMovement.OnMovementEnd += () =>
         {
-            if (!_isSelected) HidePath();
+            HidePath();
             _targetPoint = null;
         };
         unitAttack.Init(UnitSettings, _attackRangeRenderer);
@@ -82,6 +83,7 @@ public class UnitController : MonoBehaviour
 
     public void Kill(UnitAttack killer)
     {
+        IsDead = true;
         OnDeath?.Invoke();
         Destroy(gameObject);
     }
