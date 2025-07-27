@@ -131,12 +131,29 @@ public class UnitController : MonoBehaviour
 
     public bool DrawPathPreview(Vector3 targetPosition)
     {
-        if (IsMoving) return false; // Already drawing path for movement
+        if (IsMoving) return false;
 
-        NavMeshPath path = GetPathTo(targetPosition);
-        if (DrawPath(path, PathType.Preview))
+        NavMeshPath fullPath = GetPathTo(targetPosition);
+        if (fullPath.status == NavMeshPathStatus.PathInvalid) return false;
+
+        float pathLength = GetPathLength(fullPath);
+        NavMeshPath pathToDraw;
+        Vector3 finalPoint;
+
+        if (pathLength > UnitSettings.Speed)
         {
-            unitAttack.PreviewAttack(new Vector2(path.corners.Last().x, path.corners.Last().z));
+            finalPoint = GetPointOnPath(fullPath, UnitSettings.Speed);
+            pathToDraw = GetPathTo(finalPoint);
+        }
+        else
+        {
+            pathToDraw = fullPath;
+            finalPoint = fullPath.corners.Length > 0 ? fullPath.corners.Last() : transform.position;
+        }
+
+        if (DrawPath(pathToDraw, PathType.Preview))
+        {
+            unitAttack.PreviewAttack(new Vector2(finalPoint.x, finalPoint.z));
             return true;
         }
         return false;
@@ -147,9 +164,27 @@ public class UnitController : MonoBehaviour
         DrawPath(path, GetPathColor(pathColorType));
     public void HidePath() => _pathLineRenderer.positionCount = 0;
     public NavMeshPath GetPathTo(Vector3 targetPosition) => unitMovement.GetPathTo(targetPosition);
-    public bool MoveTo(Vector3 targetPoint) => unitMovement.MoveTo(targetPoint);
-    public bool MoveByPath(NavMeshPath path) => unitMovement.MoveByPath(path);
-    
+    public bool MoveTo(Vector3 targetPoint)
+    {
+        NavMeshPath path = GetPathTo(targetPoint);
+        return MoveByPath(path);
+    }
+    public bool MoveByPath(NavMeshPath path)
+    {
+        if (path.status == NavMeshPathStatus.PathInvalid) return false;
+
+        float pathLength = GetPathLength(path);
+
+        if (pathLength > UnitSettings.Speed)
+        {
+            Vector3 finalPoint = GetPointOnPath(path, UnitSettings.Speed);
+            NavMeshPath truncatedPath = GetPathTo(finalPoint);
+            return unitMovement.MoveByPath(truncatedPath);
+        }
+
+        return unitMovement.MoveByPath(path);
+    }
+
     public bool AttackEnemy(UnitController enemy) => unitAttack.AttackEnemy(enemy);
 
     public void ShowIndicator(IndicatorType indicator)
@@ -164,6 +199,41 @@ public class UnitController : MonoBehaviour
     }
 
     // PRIVATE
+
+    private float GetPathLength(NavMeshPath path)
+    {
+        float length = 0.0f;
+        if (path.corners.Length < 2)
+            return 0;
+
+        for (int i = 0; i < path.corners.Length - 1; i++)
+        {
+            length += Vector3.Distance(path.corners[i], path.corners[i + 1]);
+        }
+        return length;
+    }
+
+    // Finds a point on the path at the specified distance from the start
+    private Vector3 GetPointOnPath(NavMeshPath path, float distance)
+    {
+        if (path.corners.Length < 2)
+            return transform.position;
+
+        float currentDistance = 0f;
+        for (int i = 0; i < path.corners.Length - 1; i++)
+        {
+            float segmentLength = Vector3.Distance(path.corners[i], path.corners[i + 1]);
+            if (currentDistance + segmentLength >= distance)
+            {
+                float distanceOnSegment = distance - currentDistance;
+                float ratio = distanceOnSegment / segmentLength;
+                return Vector3.Lerp(path.corners[i], path.corners[i + 1], ratio);
+            }
+            currentDistance += segmentLength;
+        }
+
+        return path.corners.Last();
+    }
 
     private Color GetIndicatorColor(IndicatorType indicator)
     {

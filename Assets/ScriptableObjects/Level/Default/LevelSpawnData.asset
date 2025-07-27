@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 450a49bc3ef6290459f70eab5e66f045, type: 3}
+  m_Name: LevelSpawnData
+  m_EditorClassIdentifier: 
+  LevelSize: 3
+  UnitSpawnDatas:
+  - {fileID: 11400000, guid: a3768a8aeb9bebe4391906b941d4208a, type: 2}
+  - {fileID: 11400000, guid: 8eb68c9b9a85b914d9431d666997cff0, type: 2}
+  - {fileID: 11400000, guid: db9a96d008512d94083162898a3f9c74, type: 2}
+  - {fileID: 11400000, guid: 2358be773af328f4b8cb71b3bef41a11, type: 2}
+  - {fileID: 11400000, guid: 39ece3b7f0e1eb949ba491d0b5892e78, type: 2}
+  - {fileID: 11400000, guid: 57772d2c9623f6846ae6da2851e33bc7, type: 2}
+  - {fileID: 11400000, guid: c019450cb56a85c4badb6d562894eff0, type: 2}
+  - {fileID: 11400000, guid: 8d551c41374b3994b95838f7f6d50281, type: 2}
+  - {fileID: 11400000, guid: e866d52f546cb624588c3fc09667c176, type: 2}
+  - {fileID: 11400000, guid: db3875103ea45aa468ad0786a6bf5a3e, type: 2}
+  ObstacleSpawnDatas:
+  - {fileID: 11400000, guid: f6e8d128248812b4bb4cbc514d11b4d0, type: 2}
